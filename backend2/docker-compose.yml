@@ -1,0 +1,22 @@
+services:
+  backend2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: posiflora-backend2
+    environment:
+      APP_ENV: prod
+      DATABASE_URL: sqlite:///%kernel.project_dir%/var/data/data_prod.db
+      TELEGRAM_MOCK_MODE: 'true'
+      CORS_ALLOW_ORIGIN: '^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$'
+    volumes:
+      - ./var:/var/www/html/var
+
+  nginx:
+    image: nginx:alpine
+    container_name: posiflora-backend2-nginx
+    ports:
+      - '8081:80'
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./public:/var/www/html/public
