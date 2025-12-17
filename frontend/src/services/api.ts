@@ -61,10 +61,10 @@ export const api = {
     })
   },
 
-  getTelegramStatus: (shopId: number, mask = true): Promise<TelegramStatus> => {
-    const url = mask
-      ? `/shops/${shopId}/telegram/status`
-      : `/shops/${shopId}/telegram/status?mask=disabled`
+  getTelegramStatus: (shopId: number, showFullChatId): Promise<TelegramStatus> => {
+    const url = showFullChatId
+      ? `/shops/${shopId}/telegram/status?mask=disabled`
+      : `/shops/${shopId}/telegram/status`
     return request<TelegramStatus>(url)
   },
 }
