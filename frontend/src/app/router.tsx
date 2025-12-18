@@ -1,4 +1,4 @@
-import { createBrowserRouter, redirect } from 'react-router-dom'
+import { createBrowserRouter } from 'react-router-dom'
 
 import AppLayout from '@/layouts/App'
 import PageLayout from '@/layouts/Page'

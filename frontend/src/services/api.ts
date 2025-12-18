@@ -61,7 +61,7 @@ export const api = {
     })
   },
 
-  getTelegramStatus: (shopId: number, showFullChatId): Promise<TelegramStatus> => {
+  getTelegramStatus: (shopId: number, showFullChatId: boolean): Promise<TelegramStatus> => {
     const url = showFullChatId
       ? `/shops/${shopId}/telegram/status?mask=disabled`
       : `/shops/${shopId}/telegram/status`
