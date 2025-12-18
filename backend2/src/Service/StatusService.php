@@ -34,9 +34,9 @@ class StatusService
             return '';
         }
 
-        // Если maskDisabled=true, то показываем полный Chat ID
-        // Если maskDisabled=false, то маскируем
-        if ($maskDisabled) {
+        // Если maskDisabled=true, то маскируем
+        // Если maskDisabled=false, то показываем полный Chat ID
+        if (!$maskDisabled) {
             return $chatId;
         }
 

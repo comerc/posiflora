@@ -52,17 +52,16 @@ func (s *StatusService) GetStatus(ctx context.Context, shopID int64, maskDisable
 
 		// По умолчанию маскируем Chat ID
 		// Когда mask=disabled (maskDisabled=true), маскирование отключено - показываем полный Chat ID
-		// ИНВЕРТИРУЕМ: если maskDisabled=true, то маскируем; если false, то показываем полный
 		if maskDisabled {
+			// Показываем полный Chat ID
+			response.ChatID = integration.ChatID
+		} else {
 			// Маскируем chatID (показываем первые 3 и последние 3 символа)
 			if len(integration.ChatID) > 6 {
 				response.ChatID = integration.ChatID[:3] + strings.Repeat("*", len(integration.ChatID)-6) + integration.ChatID[len(integration.ChatID)-3:]
 			} else {
 				response.ChatID = strings.Repeat("*", len(integration.ChatID))
 			}
-		} else {
-			// Показываем полный Chat ID
-			response.ChatID = integration.ChatID
 		}
 
 		if stats.LastSentAt != nil {
