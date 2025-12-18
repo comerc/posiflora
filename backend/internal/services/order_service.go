@@ -52,18 +52,30 @@ func (s *OrderService) CreateOrder(ctx context.Context, shopID int64, req Create
 		return nil, fmt.Errorf("failed to get or create shop: %w", err)
 	}
 
-	// 1. Создаем заказ
-	order := &models.Order{
-		ShopID:       shopID,
-		Number:       req.Number,
-		Total:        req.Total,
-		CustomerName: req.CustomerName,
-		CreatedAt:    time.Now(),
+	// 1. Проверяем, существует ли уже заказ с таким номером
+	existingOrder, err := s.orderRepo.GetByShopIDAndNumber(ctx, shopID, req.Number)
+	if err != nil && err.Error() != "sql: no rows in result set" {
+		return nil, fmt.Errorf("failed to check existing order: %w", err)
 	}
 
-	err = s.orderRepo.Create(ctx, order)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create order: %w", err)
+	var order *models.Order
+	if existingOrder != nil {
+		// Заказ уже существует, используем его
+		order = existingOrder
+	} else {
+		// Создаем новый заказ
+		order = &models.Order{
+			ShopID:       shopID,
+			Number:       req.Number,
+			Total:        req.Total,
+			CustomerName: req.CustomerName,
+			CreatedAt:    time.Now(),
+		}
+
+		err = s.orderRepo.Create(ctx, order)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create order: %w", err)
+		}
 	}
 
 	// 2. Проверяем наличие активной Telegram-интеграции
@@ -72,7 +84,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, shopID int64, req Create
 		return nil, fmt.Errorf("failed to get integration: %w", err)
 	}
 
-	// 3. Проверяем идемпотентность
+	// 3. Проверяем идемпотентность отправки
 	existingLog, err := s.telegramSendLogRepo.GetByShopIDAndOrderID(ctx, shopID, order.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check existing log: %w", err)
