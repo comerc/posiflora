@@ -23,6 +23,7 @@ class OrderServiceTest extends TestCase
     private TelegramSendLogRepository $telegramSendLogRepo;
     private ClientInterface $telegramClient;
     private ShopRepository $shopRepo;
+    private \App\Repository\OrderRepository $orderRepo;
     private EntityManagerInterface $entityManager;
     private OrderService $orderService;
 
@@ -35,10 +36,10 @@ class OrderServiceTest extends TestCase
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
 
         // Create a mock OrderRepository since we need it for the service
-        $orderRepo = $this->createMock(\App\Repository\OrderRepository::class);
+        $this->orderRepo = $this->createMock(\App\Repository\OrderRepository::class);
 
         $this->orderService = new OrderService(
-            $orderRepo,
+            $this->orderRepo,
             $this->integrationRepo,
             $this->telegramSendLogRepo,
             $this->telegramClient,
@@ -59,6 +60,12 @@ class OrderServiceTest extends TestCase
             ->method('getOrCreate')
             ->with($shopId)
             ->willReturn($shop);
+
+        // Mock: заказ с таким номером еще не существует
+        $this->orderRepo->expects($this->once())
+            ->method('findOneBy')
+            ->with(['shopId' => $shopId, 'number' => 'A-1005'])
+            ->willReturn(null);
 
         $this->integrationRepo->expects($this->once())
             ->method('findOneBy')
@@ -112,6 +119,7 @@ class OrderServiceTest extends TestCase
         $request = new CreateOrderRequest('A-1005', 2490.0, 'Анна');
 
         $shop = $this->createMock(\App\Entity\Shop::class);
+        $existingOrder = $this->createMock(Order::class);
         $existingLog = $this->createMock(TelegramSendLog::class);
 
         $this->shopRepo->expects($this->once())
@@ -119,7 +127,17 @@ class OrderServiceTest extends TestCase
             ->with($shopId)
             ->willReturn($shop);
 
-        // Mock: проверка идемпотентности найдет существующий лог
+        // Mock: заказ уже существует
+        $this->orderRepo->expects($this->once())
+            ->method('findOneBy')
+            ->with(['shopId' => $shopId, 'number' => 'A-1005'])
+            ->willReturn($existingOrder);
+
+        // Заказ уже существует, проверяем идемпотентность отправки
+        $existingOrder->expects($this->once())
+            ->method('getId')
+            ->willReturn(1);
+
         $this->telegramSendLogRepo->expects($this->once())
             ->method('getByShopIDAndOrderID')
             ->with($shopId, 1) // shopId и orderId
@@ -128,24 +146,18 @@ class OrderServiceTest extends TestCase
         $this->integrationRepo->expects($this->never())
             ->method('findOneBy'); // Не дойдет до проверки интеграции
 
-        // Mock EntityManager calls - только для order
-        $this->entityManager->expects($this->once())
-            ->method('persist')
-            ->with($this->callback(function ($entity) {
-                if ($entity instanceof \App\Entity\Order) {
-                    // Присваиваем ID заказу при persist
-                    $entity->setId(1);
-                }
-                return true;
-            }));
+        // Mock EntityManager calls - НЕ должны вызываться для нового заказа
+        $this->entityManager->expects($this->never())
+            ->method('persist');
 
-        $this->entityManager->expects($this->once())
+        $this->entityManager->expects($this->never())
             ->method('flush');
 
         $response = $this->orderService->createOrder($shopId, $request);
 
         $this->assertInstanceOf(CreateOrderResponse::class, $response);
         $this->assertEquals('skipped', $response->sendStatus);
+        $this->assertSame($existingOrder, $response->order);
 
         $this->telegramClient->expects($this->never())
             ->method('sendMessage');
@@ -163,6 +175,12 @@ class OrderServiceTest extends TestCase
             ->method('getOrCreate')
             ->with($shopId)
             ->willReturn($shop);
+
+        // Mock: заказ с таким номером еще не существует
+        $this->orderRepo->expects($this->once())
+            ->method('findOneBy')
+            ->with(['shopId' => $shopId, 'number' => 'A-1005'])
+            ->willReturn(null);
 
         // Mock: проверка идемпотентности не найдет существующий лог
         $this->telegramSendLogRepo->expects($this->once())
